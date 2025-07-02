@@ -95,25 +95,25 @@ Each environment is completely isolated with its own AWS resources.
 ## Architecture Diagram
 
 ```mermaid
-graph TB
-    subgraph "Client"
+flowchart TB
+    subgraph Client [Client]
         UI[React Frontend<br/>Vite + SSE]
     end
     
-    subgraph "AWS Infrastructure"
-        subgraph "CDN & Storage"
+    subgraph AWS [AWS Infrastructure]
+        subgraph CDN [CDN & Storage]
             CF[CloudFront]
             S3[S3 Bucket]
         end
         
-        subgraph "Compute Layer"
+        subgraph Compute [Compute Layer]
             ALB[Application<br/>Load Balancer]
             FARGATE[Fargate Service<br/>Node.js Backend]
             APPRUNNER[App Runner<br/>MCP Server]
         end
     end
     
-    subgraph "External Services"
+    subgraph External [External Services]
         CLAUDE[Claude Sonnet 4<br/>API]
         WEATHER[National Weather<br/>Service API]
     end
@@ -130,11 +130,12 @@ graph TB
     classDef aws fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
     classDef external fill:#4A90E2,stroke:#2E5C8A,stroke-width:2px,color:#fff
     classDef client fill:#50C878,stroke:#2E7D32,stroke-width:2px,color:#fff
-    classDef default fill:#ADD8E6,stroke:#4682B4,stroke-width:2px,color:#000
+    classDef container fill:#ADD8E6,stroke:#4682B4,stroke-width:2px,color:#000
     
     class CF,S3,ALB,FARGATE,APPRUNNER aws
     class CLAUDE,WEATHER external
     class UI client
+    class Client,AWS,CDN,Compute,External container
 ```
 
 ## License
