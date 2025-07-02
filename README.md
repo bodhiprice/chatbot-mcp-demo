@@ -130,6 +130,7 @@ graph TB
     classDef aws fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
     classDef external fill:#4A90E2,stroke:#2E5C8A,stroke-width:2px,color:#fff
     classDef client fill:#50C878,stroke:#2E7D32,stroke-width:2px,color:#fff
+    classDef default fill:#ADD8E6,stroke:#4682B4,stroke-width:2px,color:#000
     
     class CF,S3,ALB,FARGATE,APPRUNNER aws
     class CLAUDE,WEATHER external

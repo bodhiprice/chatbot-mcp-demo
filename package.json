@@ -6,16 +6,25 @@
   "scripts": {
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "deploy:dev": "cdk deploy --all --profile default --context environment=dev",
-    "deploy:prod": "cdk deploy --all --profile default --context environment=prod",
-    "destroy:dev": "cdk destroy --all --profile default --context environment=dev",
-    "destroy:prod": "cdk destroy --all --profile default --context environment=prod"
+    "deploy:all:dev": "cdk deploy --all --context environment=dev",
+    "deploy:all:prod": "cdk deploy --all --context environment=prod",
+    "deploy:shared:dev": "cdk deploy ChatbotShared-dev --context environment=dev",
+    "deploy:frontend:dev": "cdk deploy ChatbotFrontend-dev --context environment=dev",
+    "deploy:backend:dev": "cdk deploy ChatbotBackend-dev --context environment=dev",
+    "deploy:mcp:dev": "cdk deploy ChatbotMcp-dev --context environment=dev",
+    "deploy:shared:prod": "cdk deploy ChatbotShared-prod --context environment=prod",
+    "deploy:frontend:prod": "cdk deploy ChatbotFrontend-prod --context environment=prod",
+    "deploy:backend:prod": "cdk deploy ChatbotBackend-prod --context environment=prod",
+    "deploy:mcp:prod": "cdk deploy ChatbotMcp-prod --context environment=prod",
+    "destroy:all:dev": "cdk destroy --all --context environment=dev",
+    "destroy:all:prod": "cdk destroy --all --context environment=prod"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "aws-cdk": "^2.0.0",
     "aws-cdk-lib": "^2.0.0",
     "constructs": "^10.0.0",
+    "tsx": "^4.0.0",
     "typescript": "^5.0.0",
     "vitest": "^2.0.0"
   },

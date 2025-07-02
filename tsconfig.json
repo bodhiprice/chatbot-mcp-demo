@@ -11,9 +11,8 @@
     "forceConsistentCasingInFileNames": true,
     "declaration": true,
     "outDir": "./dist",
-    "rootDir": "./src",
     "resolveJsonModule": true
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "tests"]
+  "include": ["infrastructure.ts"],
+  "exclude": ["node_modules", "dist", "frontend", "backend", "mcp-server"]
 }
