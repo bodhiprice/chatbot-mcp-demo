@@ -1,0 +1,25 @@
+{
+  "name": "chatbot-mcp-demo",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "MCP chatbot demo with streaming AI responses",
+  "scripts": {
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "deploy:dev": "cdk deploy --all --profile default --context environment=dev",
+    "deploy:prod": "cdk deploy --all --profile default --context environment=prod",
+    "destroy:dev": "cdk destroy --all --profile default --context environment=dev",
+    "destroy:prod": "cdk destroy --all --profile default --context environment=prod"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "aws-cdk": "^2.0.0",
+    "aws-cdk-lib": "^2.0.0",
+    "constructs": "^10.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

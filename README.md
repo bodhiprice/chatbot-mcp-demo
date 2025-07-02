@@ -44,9 +44,9 @@ Single CDK file contains all AWS resources, making it easy to:
 ## Getting Started
 
 ### Prerequisites
-- Node.js 18+
+- Node.js 22+
 - AWS CLI configured
-- Docker (for local development)
+- Docker (for container deployment)
 - Anthropic API key
 
 ### Local Development
