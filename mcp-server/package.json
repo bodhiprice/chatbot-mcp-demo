@@ -10,7 +10,8 @@
     "start": "npm run build && node dist/index.js",
     "dev": "tsx --watch src/index.ts",
     "build": "rm -rf dist && node esbuild.config.js",
-    "test": "vitest",
+    "test": "vitest --run",
+    "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "lint": "eslint . --ext .ts --fix"
   },

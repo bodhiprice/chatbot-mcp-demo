@@ -4,20 +4,9 @@
   "type": "module",
   "description": "MCP chatbot demo with streaming AI responses",
   "scripts": {
-    "test": "vitest",
-    "test:ui": "vitest --ui",
-    "deploy:all:dev": "cdk deploy --all --context environment=dev",
-    "deploy:all:prod": "cdk deploy --all --context environment=prod",
-    "deploy:shared:dev": "cdk deploy ChatbotShared-dev --context environment=dev",
-    "deploy:frontend:dev": "cdk deploy ChatbotFrontend-dev --context environment=dev",
-    "deploy:backend:dev": "cdk deploy ChatbotBackend-dev --context environment=dev",
-    "deploy:mcp:dev": "cdk deploy ChatbotMcp-dev --context environment=dev",
-    "deploy:shared:prod": "cdk deploy ChatbotShared-prod --context environment=prod",
-    "deploy:frontend:prod": "cdk deploy ChatbotFrontend-prod --context environment=prod",
-    "deploy:backend:prod": "cdk deploy ChatbotBackend-prod --context environment=prod",
-    "deploy:mcp:prod": "cdk deploy ChatbotMcp-prod --context environment=prod",
-    "destroy:all:dev": "cdk destroy --all --context environment=dev",
-    "destroy:all:prod": "cdk destroy --all --context environment=prod"
+    "test": "vitest --run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
