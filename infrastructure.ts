@@ -1,4 +1,7 @@
-import { App, Stack, StackProps } from 'aws-cdk-lib';
+import { App, Stack, StackProps, CfnOutput } from 'aws-cdk-lib';
+import * as assets from 'aws-cdk-lib/aws-ecr-assets';
+import * as apprunner from 'aws-cdk-lib/aws-apprunner';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 
 interface ChatbotStackProps extends StackProps {
@@ -32,8 +35,58 @@ class BackendStack extends Stack {
 class McpServerStack extends Stack {
   constructor(scope: Construct, id: string, props: ChatbotStackProps) {
     super(scope, id, props);
-    
-    // App Runner service
+
+    const dockerAsset = new assets.DockerImageAsset(this, 'WeatherMcpImage', {
+      directory: './mcp-server',
+      platform: assets.Platform.LINUX_AMD64
+    });
+
+    const appRunnerRole = new iam.Role(this, 'ServiceRole', {
+      assumedBy: new iam.ServicePrincipal('build.apprunner.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSAppRunnerServicePolicyForECRAccess')
+      ]
+    });
+
+    const instanceRole = new iam.Role(this, 'InstanceRole', {
+      assumedBy: new iam.ServicePrincipal('tasks.apprunner.amazonaws.com')
+    });
+
+    const appRunnerService = new apprunner.CfnService(this, 'WeatherMcpService', {
+      serviceName: `weather-mcp-${props.environment}`,
+      sourceConfiguration: {
+        authenticationConfiguration: {
+          accessRoleArn: appRunnerRole.roleArn
+        },
+        autoDeploymentsEnabled: false,
+        imageRepository: {
+          imageRepositoryType: 'ECR',
+          imageIdentifier: dockerAsset.imageUri,
+          imageConfiguration: {
+            port: '3000',
+            runtimeEnvironmentVariables: [
+              { name: 'NODE_ENV', value: 'production' },
+              { name: 'PORT', value: '3000' }
+            ]
+          }
+        }
+      },
+      instanceConfiguration: {
+        cpu: '512',
+        memory: '1024',
+        instanceRoleArn: instanceRole.roleArn
+      }
+    });
+
+    new CfnOutput(this, 'WeatherMcpServiceUrl', {
+      value: `https://${appRunnerService.attrServiceUrl}`,
+      description: 'Weather MCP Server URL'
+    });
+
+    new CfnOutput(this, 'WeatherMcpHealthCheck', {
+      value: `https://${appRunnerService.attrServiceUrl}/health`,
+      description: 'Weather MCP Server Health Check'
+    });
   }
 }
 

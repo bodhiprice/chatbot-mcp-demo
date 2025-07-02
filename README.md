@@ -1,10 +1,10 @@
 # MCP Chatbot Demo
 
-A demonstration of Model Context Protocol (MCP) architecture showcasing how to build scalable, streaming AI applications with modern cloud infrastructure.
+A demonstration of Model Context Protocol (MCP) architecture demonstarting how to build scalable, streaming AI applications on [cloud infrastructure.
 
 ## What is MCP?
 
-Model Context Protocol is Anthropic's open standard that enables AI assistants to securely connect to external data sources and tools. This demo shows how to build a production-ready architecture that leverages MCP servers for enhanced AI capabilities.
+[Model Context Protocol](https://modelcontextprotocol.io/introduction) is Anthropic's open standard that enables AI assistants to securely connect to external data sources and tools. This demo shows how to build a production-ready architecture that leverages MCP servers for enhanced AI capabilities.
 
 ## Architecture Overview
 
