@@ -13,7 +13,7 @@ const fastify = Fastify();
 fastify.register(cors, {
   origin: '*',
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'x-user-id', 'x-session-id'],
 });
 
 function createMcpServer(userContext: Record<string, string | undefined>) {
