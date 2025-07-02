@@ -12,7 +12,7 @@ This project demonstrates a clean, scalable approach to building AI applications
 
 - **Frontend**: Vite-based React application with Server-Sent Events (SSE) for real-time streaming
 - **Backend**: Node.js service running on AWS Fargate with Application Load Balancer
-- **MCP Server**: Fastify-based service on AWS App Runner providing weather data integration
+- **MCP Server**: Fastify-based service with choice of AWS App Runner or Fargate deployment
 - **Infrastructure**: Single-file AWS CDK for complete infrastructure as code
 
 ## Key Architectural Decisions
@@ -23,7 +23,7 @@ Uses Server-Sent Events through Application Load Balancer. This enables true str
 
 ### Container-First Approach
 
-Both backend services run in containers (Fargate and App Runner) providing:
+Backend services run in containers providing:
 
 - Scale-to-zero cost optimization
 - Consistent deployment environments
@@ -37,12 +37,19 @@ Single CDK file contains all AWS resources, making it easy to:
 - Version control infrastructure changes
 - Deploy identical environments for dev/test/prod
 
+### MCP Deployment Flexibility
+
+Provides two deployment options for the MCP server:
+
+- **App Runner**: Simpler deployment, 2-minute timeout, cost-optimized
+- **Fargate**: Enterprise-grade, configurable timeouts, full load balancer control
+
 ## Technology Stack
 
 - **Frontend**: Vite, React, TypeScript
 - **Backend**: Node.js, Express, Server-Sent Events
 - **MCP Server**: Fastify, Node.js
-- **Infrastructure**: AWS CDK, Fargate, App Runner, ALB, CloudFront
+- **Infrastructure**: AWS CDK, Fargate, ALB, CloudFront
 - **AI Integration**: Claude Sonnet 4 via Anthropic API
 - **External APIs**: National Weather Service API
 
@@ -93,7 +100,11 @@ npx cdk deploy --all --context environment=dev
 # Deploy individual services (optional)
 npx cdk deploy ChatbotFrontend-dev --context environment=dev
 npx cdk deploy ChatbotBackend-dev --context environment=dev
-npx cdk deploy ChatbotMcp-dev --context environment=dev
+
+# Choose MCP deployment option (see MCP Deployment Options below)
+npx cdk deploy ChatbotMcpAppRunner-dev --context environment=dev
+# OR
+npx cdk deploy ChatbotMcpFargate-dev --context environment=dev
 
 # Deploy to production
 npx cdk deploy --all --context environment=prod
@@ -101,6 +112,21 @@ npx cdk deploy --all --context environment=prod
 # Destroy environment when no longer needed
 npx cdk destroy --all --context environment=dev
 ```
+
+**MCP Deployment Options**
+
+The project provides two deployment options for the MCP server:
+
+- **App Runner** (`ChatbotMcpAppRunner-{env}`): Simpler, cheaper, 2-minute timeout
+
+  - Best for: Most business use cases, cost optimization, simple deployment
+  - Limitations: 2-minute request timeout, less configuration control
+
+- **Fargate** (`ChatbotMcpFargate-{env}`): More robust, configurable, no timeout limits
+  - Best for: Enterprise use cases, long-running operations, full control
+  - Benefits: Configurable timeouts, auto-scaling, load balancer integration
+
+Choose App Runner for simplicity and cost, Fargate for enterprise robustness.
 
 **Environment Management**
 Each environment gets isolated AWS resources with the naming pattern `ServiceName-{environment}`. This allows independent deployment and testing without conflicts.
@@ -137,9 +163,10 @@ flowchart TB
         end
 
         subgraph Compute [Compute Layer]
-            ALB[Application<br/>Load Balancer]
-            FARGATE[Fargate Service<br/>Node.js Backend]
-            APPRUNNER[App Runner<br/>MCP Server]
+            ALB1[Backend ALB<br/>Load Balancer]
+            FARGATE1[Backend Fargate<br/>Node.js Service]
+            ALB2[MCP ALB<br/>Load Balancer]
+            FARGATE2[MCP Fargate<br/>Weather Service]
         end
     end
 
@@ -150,19 +177,20 @@ flowchart TB
 
     UI -.->|Static Assets| CF
     CF --> S3
-    UI -->|SSE Connection| ALB
-    ALB --> FARGATE
-    FARGATE -->|Streaming Response| ALB
-    FARGATE -->|AI Requests| CLAUDE
-    CLAUDE -->|MCP Calls| APPRUNNER
-    APPRUNNER --> WEATHER
+    UI -->|SSE Connection| ALB1
+    ALB1 --> FARGATE1
+    FARGATE1 -->|Streaming Response| ALB1
+    FARGATE1 -->|AI Requests| CLAUDE
+    CLAUDE -->|MCP Calls| ALB2
+    ALB2 --> FARGATE2
+    FARGATE2 --> WEATHER
 
     classDef aws fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
     classDef external fill:#4A90E2,stroke:#2E5C8A,stroke-width:2px,color:#fff
     classDef client fill:#50C878,stroke:#2E7D32,stroke-width:2px,color:#fff
     classDef container fill:#E6F3FF,stroke:#87CEEB,stroke-width:2px,color:#000
 
-    class CF,S3,ALB,FARGATE,APPRUNNER aws
+    class CF,S3,ALB1,FARGATE1,ALB2,FARGATE2 aws
     class CLAUDE,WEATHER external
     class UI client
     class Client,AWS,CDN,Compute,External container

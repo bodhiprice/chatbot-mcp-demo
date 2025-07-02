@@ -7,7 +7,7 @@ RUN addgroup -g 1001 -S nodejs && \
 
 COPY package*.json ./
 
-RUN npm ci
+RUN npm install
 
 COPY . .
 

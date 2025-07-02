@@ -1,6 +1,10 @@
-import { App, Stack, StackProps, CfnOutput } from 'aws-cdk-lib';
+import { App, Stack, StackProps, CfnOutput, Duration } from 'aws-cdk-lib';
 import * as assets from 'aws-cdk-lib/aws-ecr-assets';
 import * as apprunner from 'aws-cdk-lib/aws-apprunner';
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as ecs from 'aws-cdk-lib/aws-ecs';
+import * as ecsPatterns from 'aws-cdk-lib/aws-ecs-patterns';
+import * as logs from 'aws-cdk-lib/aws-logs';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 
@@ -32,7 +36,7 @@ class BackendStack extends Stack {
   }
 }
 
-class McpServerStack extends Stack {
+class McpAppRunnerStack extends Stack {
   constructor(scope: Construct, id: string, props: ChatbotStackProps) {
     super(scope, id, props);
 
@@ -53,7 +57,7 @@ class McpServerStack extends Stack {
     });
 
     const appRunnerService = new apprunner.CfnService(this, 'WeatherMcpService', {
-      serviceName: `weather-mcp-${props.environment}`,
+      serviceName: `weather-mcp-apprunner-${props.environment}`,
       sourceConfiguration: {
         authenticationConfiguration: {
           accessRoleArn: appRunnerRole.roleArn
@@ -80,12 +84,84 @@ class McpServerStack extends Stack {
 
     new CfnOutput(this, 'WeatherMcpServiceUrl', {
       value: `https://${appRunnerService.attrServiceUrl}`,
-      description: 'Weather MCP Server URL'
+      description: 'Weather MCP Server URL (App Runner)'
     });
 
     new CfnOutput(this, 'WeatherMcpHealthCheck', {
       value: `https://${appRunnerService.attrServiceUrl}/health`,
-      description: 'Weather MCP Server Health Check'
+      description: 'Weather MCP Server Health Check (App Runner)'
+    });
+  }
+}
+
+class McpFargateStack extends Stack {
+  constructor(scope: Construct, id: string, props: ChatbotStackProps) {
+    super(scope, id, props);
+
+    const vpc = ec2.Vpc.fromLookup(this, 'DefaultVpc', { isDefault: true });
+
+    const cluster = new ecs.Cluster(this, 'McpCluster', {
+      vpc,
+      clusterName: `mcp-cluster-${props.environment}`
+    });
+
+    const logGroup = new logs.LogGroup(this, 'McpLogGroup', {
+      logGroupName: `/ecs/mcp-server-${props.environment}`,
+      retention: logs.RetentionDays.ONE_WEEK
+    });
+
+    const fargateService = new ecsPatterns.ApplicationLoadBalancedFargateService(this, 'McpFargateService', {
+      cluster,
+      serviceName: `mcp-server-${props.environment}`,
+      taskImageOptions: {
+        image: ecs.ContainerImage.fromAsset('./mcp-server', {
+          platform: assets.Platform.LINUX_AMD64
+        }),
+        containerPort: 3000,
+        environment: {
+          NODE_ENV: 'production',
+          PORT: '3000'
+        },
+        logDriver: ecs.LogDrivers.awsLogs({
+          streamPrefix: 'mcp-server',
+          logGroup
+        })
+      },
+      memoryLimitMiB: 1024,
+      cpu: 512,
+      desiredCount: 1,
+      publicLoadBalancer: true,
+      platformVersion: ecs.FargatePlatformVersion.LATEST
+    });
+
+    fargateService.targetGroup.configureHealthCheck({
+      path: '/health',
+      healthyHttpCodes: '200',
+      interval: Duration.seconds(30),
+      timeout: Duration.seconds(5),
+      healthyThresholdCount: 2,
+      unhealthyThresholdCount: 3
+    });
+
+    const scalableTarget = fargateService.service.autoScaleTaskCount({
+      minCapacity: 1,
+      maxCapacity: 3
+    });
+
+    scalableTarget.scaleOnCpuUtilization('CpuScaling', {
+      targetUtilizationPercent: 70,
+      scaleOutCooldown: Duration.minutes(2),
+      scaleInCooldown: Duration.minutes(5)
+    });
+
+    new CfnOutput(this, 'WeatherMcpServiceUrl', {
+      value: `http://${fargateService.loadBalancer.loadBalancerDnsName}`,
+      description: 'Weather MCP Server URL (Fargate)'
+    });
+
+    new CfnOutput(this, 'WeatherMcpHealthCheck', {
+      value: `http://${fargateService.loadBalancer.loadBalancerDnsName}/health`,
+      description: 'Weather MCP Server Health Check (Fargate)'
     });
   }
 }
@@ -102,4 +178,5 @@ const stackProps: ChatbotStackProps = { env, environment };
 new SharedStack(app, `ChatbotShared-${environment}`, stackProps);
 new FrontendStack(app, `ChatbotFrontend-${environment}`, stackProps);
 new BackendStack(app, `ChatbotBackend-${environment}`, stackProps);
-new McpServerStack(app, `ChatbotMcp-${environment}`, stackProps);
+new McpAppRunnerStack(app, `ChatbotMcpAppRunner-${environment}`, stackProps);
+new McpFargateStack(app, `ChatbotMcpFargate-${environment}`, stackProps);
