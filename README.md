@@ -6,6 +6,13 @@ A demonstration of Model Context Protocol (MCP) architecture demonstarting how t
 
 [Model Context Protocol](https://modelcontextprotocol.io/introduction) is Anthropic's open standard that enables AI assistants to securely connect to external data sources and tools. This demo shows how to build a production-ready architecture that leverages MCP servers for enhanced AI capabilities.
 
+### MCP Approach Benefits:
+- **Reusability**: One MCP server can serve multiple AI applications
+- **Dynamic Discovery**: Tools can be added/removed without changing your app
+- **Standardization**: Common protocol across different AI providers
+- **Isolation**: Tool logic is separate from your application logic
+- **Scalability**: MCP servers can be deployed independently
+
 ## Architecture Overview
 
 This project demonstrates a clean, scalable approach to building AI applications with real-time streaming responses:
