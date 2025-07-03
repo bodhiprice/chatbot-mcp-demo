@@ -4,8 +4,6 @@ import { FastifySSEPlugin } from 'fastify-sse-v2';
 import { config } from 'dotenv';
 import { join } from 'path';
 import Anthropic from '@anthropic-ai/sdk';
-import { Client } from '@modelcontextprotocol/sdk/client/index';
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
 config({ path: join(process.cwd(), '..', '.env') });
 
@@ -16,53 +14,6 @@ const fastify = Fastify({
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY
 });
-
-let mcpClient: Client | null = null;
-let mcpTools: unknown[] = [];
-
-async function initializeMcpClient() {
-  const mcpServerUrl = process.env.MCP_SERVER_URL;
-  if (!mcpServerUrl) {
-    fastify.log.info('MCP_SERVER_URL not found, skipping MCP client initialization');
-    return;
-  }
-
-  try {
-    const transport = new StreamableHTTPClientTransport(new URL(mcpServerUrl));
-    mcpClient = new Client(
-      {
-        name: 'chatbot-backend',
-        version: '1.0.0'
-      },
-      {
-        capabilities: {
-          tools: {}
-        }
-      }
-    );
-
-    await mcpClient.connect(transport);
-    fastify.log.info(`Connected to MCP server at ${mcpServerUrl}`);
-
-    const toolsResponse = await mcpClient.listTools();
-
-    console.debug('TOOLS:', toolsResponse);
-
-    if (toolsResponse.tools) {
-      mcpTools = toolsResponse.tools.map((tool) => ({
-        type: 'function' as const,
-        function: {
-          name: tool.name,
-          description: tool.description || '',
-          parameters: tool.inputSchema as Record<string, unknown>
-        }
-      }));
-      fastify.log.info(`Loaded ${mcpTools.length} MCP tools`);
-    }
-  } catch (error) {
-    fastify.log.error('Failed to initialize MCP client:', error);
-  }
-}
 
 fastify.register(cors, {
   origin: true,
@@ -93,43 +44,66 @@ fastify.get('/chat/stream', async (request, reply) => {
   });
 
   try {
-    const streamParams: Anthropic.MessageCreateParams = {
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
-      messages: [
-        {
-          role: 'user',
-          content: userMessage
-        }
-      ]
-    };
-
-    if (mcpTools.length > 0) {
-      streamParams.tools = mcpTools as Anthropic.MessageCreateParamsStreaming['tools'];
-    }
-
-    const stream = anthropic.messages
-      .stream(streamParams)
-      .on('text', (text) => {
+    const stream = anthropic.beta.messages
+      .stream({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [
+          {
+            role: 'user',
+            content: userMessage
+          }
+        ],
+        ...(process.env.MCP_SERVER_URL && process.env.MCP_SERVER_URL.trim() !== '' ? { 
+          betas: ['mcp-client-2025-04-04'],
+          mcp_servers: [
+            {
+              type: 'url',
+              url: process.env.MCP_SERVER_URL,
+              name: 'weather-mcp'
+            }
+          ]
+        } : {})
+      })
+      .on('text', (textDelta: string, textSnapshot: string) => {
+        console.log('TEXT DELTA:', textDelta);
         reply.sse({
           event: 'text',
-          data: JSON.stringify({ text })
+          data: JSON.stringify({ text: textDelta, snapshot: textSnapshot })
         });
       })
-      .on('contentBlock', (block) => {
-        console.debug('CONTENT BLOCK:', block);
+      .on('contentBlock', (contentBlock: object) => {
+        console.log('CONTENT BLOCK:', contentBlock);
         reply.sse({
           event: 'contentBlock',
-          data: JSON.stringify(block)
+          data: JSON.stringify(contentBlock)
+        });
+      })
+      .on('message', (message: object) => {
+        console.log('MESSAGE:', message);
+        reply.sse({
+          event: 'message',
+          data: JSON.stringify(message)
+        });
+      })
+      .on('error', (error: Error) => {
+        console.error('STREAM ERROR:', error);
+        reply.sse({
+          event: 'error',
+          data: JSON.stringify({ error: error.message })
+        });
+      })
+      .on('end', () => {
+        console.log('STREAM END');
+        reply.sse({
+          event: 'done',
+          data: JSON.stringify({ status: 'completed' })
         });
       });
-    await stream.finalMessage();
 
-    reply.sse({
-      event: 'done',
-      data: JSON.stringify({ status: 'completed' })
-    });
+    await stream.finalMessage();
   } catch (error) {
+    console.error('CATCH ERROR:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     reply.sse({
       event: 'error',
@@ -142,13 +116,12 @@ const port = Number(process.env.PORT ?? 3001);
 const host = process.env.HOST ?? '0.0.0.0';
 
 if (process.env.NODE_ENV !== 'test') {
-  fastify.listen({ port, host }, async (err, address) => {
+  fastify.listen({ port, host }, (err, address) => {
     if (err) {
       fastify.log.error(err);
       process.exit(1);
     }
     fastify.log.info(`Server listening at ${address}`);
-    await initializeMcpClient();
   });
 }
 

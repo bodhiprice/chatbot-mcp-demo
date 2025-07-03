@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import fastify from '../src/index.js';
+import fastify from '../src/index';
 
 describe('Weather MCP Server E2E Tests', () => {
   beforeAll(async () => {

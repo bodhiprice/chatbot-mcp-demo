@@ -10,7 +10,7 @@
     "test:ui": "vitest --ui"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.55.1",
+    "@anthropic-ai/sdk": "^0.56.0",
     "@fastify/cors": "^11.0.1",
     "@modelcontextprotocol/sdk": "^1.14.0",
     "dotenv": "^16.5.0",
