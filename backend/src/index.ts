@@ -2,9 +2,10 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { FastifySSEPlugin } from 'fastify-sse-v2';
 import { config } from 'dotenv';
+import { join } from 'path';
 import Anthropic from '@anthropic-ai/sdk';
 
-config();
+config({ path: join(process.cwd(), '..', '.env') });
 
 const fastify = Fastify({
   logger: true
