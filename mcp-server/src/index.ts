@@ -1,12 +1,13 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { config } from 'dotenv';
+import { join } from 'path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { tools } from './tools.js';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 
-config();
+config({ path: join(process.cwd(), '..', '.env') });
 
 const fastify = Fastify();
 
@@ -67,12 +68,9 @@ fastify.post('/mcp', async (request, reply) => {
   const userContext = {};
 
   const requestBody = request.body as Record<string, unknown>;
-  console.debug('REQUEST:', requestBody);
 
   if (requestBody.jsonrpc === '2.0') {
     try {
-      console.debug('JSON-RPC METHOD:', requestBody.method);
-
       const server = createMcpServer(userContext);
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: undefined,
@@ -106,11 +104,11 @@ fastify.post('/mcp', async (request, reply) => {
 });
 
 const port = Number(process.env.PORT ?? 3000);
+const host = process.env.HOST ?? '0.0.0.0';
 
-if (process.env.NODE_ENV !== 'test') {
-  fastify.listen({ port, host: '0.0.0.0' }, () => {
-    console.log(`Server running on port ${port}`);
-  });
-}
+fastify.listen({ port, host }, () => {
+  console.log(`Server running on port ${port}`);
+});
 
+export { port, host };
 export default fastify;

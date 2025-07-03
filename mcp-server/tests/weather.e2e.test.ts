@@ -60,12 +60,12 @@ describe('Weather MCP Server E2E Tests', () => {
     });
 
     expect(response.statusCode).toBe(200);
-    
+
     const sseLines = response.payload.split('\n');
-    const dataLine = sseLines.find(line => line.startsWith('data: '));
+    const dataLine = sseLines.find((line) => line.startsWith('data: '));
     const jsonData = JSON.parse(dataLine!.substring(6));
     const weatherText = JSON.parse(jsonData.result.content[0].text);
-    
+
     expect(weatherText).toContain('Current conditions for 40.7128,-74.006');
   });
 
@@ -91,14 +91,13 @@ describe('Weather MCP Server E2E Tests', () => {
       }),
     });
 
-
     expect(response.statusCode).toBe(200);
-    
+
     const sseLines = response.payload.split('\n');
-    const dataLine = sseLines.find(line => line.startsWith('data: '));
+    const dataLine = sseLines.find((line) => line.startsWith('data: '));
     const jsonData = JSON.parse(dataLine!.substring(6));
     const forecastText = JSON.parse(jsonData.result.content[0].text);
-    
+
     expect(forecastText).toContain('3-day forecast for 41.8781,-87.6298');
   });
 
@@ -123,13 +122,15 @@ describe('Weather MCP Server E2E Tests', () => {
       }),
     });
 
+    console.debug('RESPONSE', response.payload);
+
     expect(response.statusCode).toBe(200);
-    
+
     const sseLines = response.payload.split('\n');
-    const dataLine = sseLines.find(line => line.startsWith('data: '));
+    const dataLine = sseLines.find((line) => line.startsWith('data: '));
     const jsonData = JSON.parse(dataLine!.substring(6));
     const errorText = JSON.parse(jsonData.result.content[0].text);
-    
+
     expect(errorText).toContain('Error: Location must be in lat,lon format');
   });
 });
