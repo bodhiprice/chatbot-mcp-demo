@@ -47,7 +47,7 @@ Provides two deployment options for the MCP server:
 ## Technology Stack
 
 - **Frontend**: Vite, React, TypeScript
-- **Backend**: Node.js, Express, Server-Sent Events
+- **Backend**: Node.js, Fastify, Server-Sent Events
 - **MCP Server**: Fastify, Node.js
 - **Infrastructure**: AWS CDK, Fargate, ALB, CloudFront
 - **AI Integration**: Claude Sonnet 4 via Anthropic API
@@ -140,6 +140,30 @@ The project supports multiple environments with manual promotion control:
 - **prod**: Manual promotion from testing
 
 Each environment is completely isolated with its own AWS resources.
+
+## Authentication Considerations
+
+### SSE Authentication Challenges
+
+Server-Sent Events (SSE) using the native `EventSource` API have a fundamental limitation: **they do not support custom headers**, including `Authorization: Bearer <token>`. This is a well-documented constraint of the EventSource specification.
+
+### Available Authentication Patterns
+
+When implementing SSE authentication in applications, developers have several proven approaches:
+
+1. **Query Parameter Authentication**: Pass tokens via URL parameters (`?token=<jwt>`) - simple and secure over HTTPS
+2. **Cookie-Based Authentication**: Use HTTP-only cookies with `withCredentials: true` for automatic credential inclusion
+3. **fetch-event-source Library**: Microsoft's `@microsoft/fetch-event-source` package enables full header support including Authorization headers
+4. **Fetch API Streaming**: Manual implementation using `fetch()` with `ReadableStream` for complete header control
+
+### Demo Architecture Decision
+
+This demo implements a **thin pass-through architecture** where the backend acts as an authentication and API key proxy. This pattern:
+
+- Hides the Anthropic API key from client-side code
+- Enables future authentication without fundamental architecture changes
+- Demonstrates real-world SSE streaming patterns
+- Provides a foundation for production authentication implementations
 
 ## Cost Optimization
 
