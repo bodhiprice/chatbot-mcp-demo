@@ -1,25 +1,11 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { config } from 'dotenv';
 import { join } from 'path';
 
 config({ path: join(process.cwd(), '..', '.env') });
 
 describe('Backend E2E Tests', () => {
-  const port = 3002;
-  const baseUrl = `http://localhost:${port}`;
-  let fastifyApp: any;
-
-  beforeAll(async () => {
-    const { default: app } = await import('../src/index.js');
-    fastifyApp = app;
-    await app.listen({ port, host: '0.0.0.0' });
-  });
-
-  afterAll(() => {
-    if (fastifyApp) {
-      fastifyApp.close();
-    }
-  });
+  const baseUrl = process.env.BACKEND_URL;
 
   it('should return health status', async () => {
     const response = await fetch(`${baseUrl}/health`);

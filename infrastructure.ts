@@ -1,4 +1,4 @@
-import { App, Stack, StackProps, CfnOutput, Duration } from 'aws-cdk-lib';
+import { App, Stack, StackProps, CfnOutput, Duration, Fn } from 'aws-cdk-lib';
 import * as assets from 'aws-cdk-lib/aws-ecr-assets';
 import * as apprunner from 'aws-cdk-lib/aws-apprunner';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
@@ -56,7 +56,7 @@ class BackendAppRunnerStack extends Stack {
               { name: 'NODE_ENV', value: 'production' },
               { name: 'PORT', value: '3001' },
               { name: 'ANTHROPIC_API_KEY', value: process.env.ANTHROPIC_API_KEY || '' },
-              { name: 'MCP_SERVER_URL', value: process.env.MCP_SERVER_URL || '' }
+              { name: 'MCP_SERVER_URL', value: Fn.importValue(`ChatbotMcpServiceUrl-${props.environment}`) }
             ]
           }
         }
@@ -70,13 +70,10 @@ class BackendAppRunnerStack extends Stack {
 
     new CfnOutput(this, 'BackendServiceUrl', {
       value: `https://${appRunnerService.attrServiceUrl}`,
-      description: 'Backend Service URL (App Runner)'
+      description: 'Backend Service URL (App Runner)',
+      exportName: `ChatbotBackendServiceUrl-${props.environment}`
     });
 
-    new CfnOutput(this, 'BackendHealthCheck', {
-      value: `https://${appRunnerService.attrServiceUrl}/health`,
-      description: 'Backend Service Health Check (App Runner)'
-    });
   }
 }
 
@@ -144,13 +141,10 @@ class BackendFargateStack extends Stack {
 
     new CfnOutput(this, 'BackendServiceUrl', {
       value: `http://${fargateService.loadBalancer.loadBalancerDnsName}`,
-      description: 'Backend Service URL (Fargate)'
+      description: 'Backend Service URL (Fargate)',
+      exportName: `ChatbotBackendServiceUrl-${props.environment}`
     });
 
-    new CfnOutput(this, 'BackendHealthCheck', {
-      value: `http://${fargateService.loadBalancer.loadBalancerDnsName}/health`,
-      description: 'Backend Service Health Check (Fargate)'
-    });
   }
 }
 
@@ -202,13 +196,10 @@ class McpAppRunnerStack extends Stack {
 
     new CfnOutput(this, 'WeatherMcpServiceUrl', {
       value: `https://${appRunnerService.attrServiceUrl}`,
-      description: 'Weather MCP Server URL (App Runner)'
+      description: 'Weather MCP Server URL (App Runner)',
+      exportName: `ChatbotMcpServiceUrl-${props.environment}`
     });
 
-    new CfnOutput(this, 'WeatherMcpHealthCheck', {
-      value: `https://${appRunnerService.attrServiceUrl}/health`,
-      description: 'Weather MCP Server Health Check (App Runner)'
-    });
   }
 }
 
@@ -277,10 +268,6 @@ class McpFargateStack extends Stack {
       description: 'Weather MCP Server URL (Fargate)'
     });
 
-    new CfnOutput(this, 'WeatherMcpHealthCheck', {
-      value: `http://${fargateService.loadBalancer.loadBalancerDnsName}/health`,
-      description: 'Weather MCP Server Health Check (Fargate)'
-    });
   }
 }
 
