@@ -7,6 +7,7 @@ A demonstration of Model Context Protocol (MCP) architecture demonstarting how t
 [Model Context Protocol](https://modelcontextprotocol.io/introduction) is Anthropic's open standard that enables AI assistants to securely connect to external data sources and tools. This demo shows how to build a production-ready architecture that leverages MCP servers for enhanced AI capabilities.
 
 ### MCP Approach Benefits:
+
 - **Reusability**: One MCP server can serve multiple AI applications
 - **Dynamic Discovery**: Tools can be added/removed without changing your app
 - **Standardization**: Common protocol across different AI providers
@@ -92,32 +93,42 @@ npm run dev
 
 **Infrastructure Deployment**
 
-First, ensure AWS CLI is configured with appropriate credentials and permissions.
+First, ensure AWS CLI is configured with appropriate credentials and permissions, and set required environment variables.
 
 ```bash
+# Set required environment variable
+export ANTHROPIC_API_KEY=your_anthropic_api_key_here
+
 # Install CDK dependencies
 npm install
 
 # Bootstrap CDK (first time only per AWS account/region)
 npx cdk bootstrap
 
-# Deploy all services to dev environment
+# Deploy all services
 npx cdk deploy --all --context environment=dev
 
-# Deploy individual services (optional)
-npx cdk deploy ChatbotFrontend-dev --context environment=dev
-npx cdk deploy ChatbotBackend-dev --context environment=dev
-
-# Choose MCP deployment option (see MCP Deployment Options below)
-npx cdk deploy ChatbotMcpAppRunner-dev --context environment=dev
-# OR
-npx cdk deploy ChatbotMcpFargate-dev --context environment=dev
-
 # Deploy to production
+export ANTHROPIC_API_KEY=your_production_key
 npx cdk deploy --all --context environment=prod
 
 # Destroy environment when no longer needed
 npx cdk destroy --all --context environment=dev
+```
+
+**Manual Step-by-Step Deployment (Alternative)**
+
+If you prefer to deploy services individually, follow this order due to cross-stack dependencies:
+
+```bash
+# 1. Deploy MCP server first (exports URL for backend)
+npx cdk deploy ChatbotMcpAppRunner-dev --context environment=dev
+
+# 2. Deploy backend second (imports MCP URL, exports backend URL)
+npx cdk deploy ChatbotBackendAppRunner-dev --context environment=dev
+
+# 3. Deploy frontend last (imports backend URL)
+npx cdk deploy ChatbotFrontend-dev --context environment=dev
 ```
 
 **MCP Deployment Options**
