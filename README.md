@@ -19,8 +19,8 @@ A demonstration of Model Context Protocol (MCP) architecture demonstarting how t
 This project demonstrates a clean, scalable approach to building AI applications with real-time streaming responses:
 
 - **Frontend**: Vite-based React application with Server-Sent Events (SSE) for real-time streaming
-- **Backend**: Node.js service running on AWS Fargate with Application Load Balancer
-- **MCP Server**: Fastify-based service with choice of AWS App Runner or Fargate deployment
+- **Backend**: Node.js service with choice of AWS App Runner or Fargate deployment
+- **MCP Server**: Fastify-based service with choice of AWS App Runner or Fargate deployment  
 - **Infrastructure**: Single-file AWS CDK for complete infrastructure as code
 
 ## Key Architectural Decisions
@@ -45,9 +45,9 @@ Single CDK file contains all AWS resources, making it easy to:
 - Version control infrastructure changes
 - Deploy identical environments for dev/test/prod
 
-### MCP Deployment Flexibility
+### Deployment Flexibility
 
-Provides two deployment options for the MCP server:
+Provides two deployment options for both backend and MCP server:
 
 - **App Runner**: Simpler deployment, 2-minute timeout, cost-optimized
 - **Fargate**: Enterprise-grade, configurable timeouts, full load balancer control
@@ -118,29 +118,32 @@ npx cdk destroy --all --context environment=dev
 
 **Manual Step-by-Step Deployment (Alternative)**
 
-If you prefer to deploy services individually, follow this order due to cross-stack dependencies:
+If you prefer to deploy services individually, follow this order due to cross-stack dependencies. See [Deployment Options](#deployment-options) below for choosing between App Runner and Fargate.
 
 ```bash
 # 1. Deploy MCP server first (exports URL for backend)
 npx cdk deploy ChatbotMcpAppRunner-dev --context environment=dev
+# OR
+npx cdk deploy ChatbotMcpFargate-dev --context environment=dev
 
 # 2. Deploy backend second (imports MCP URL, exports backend URL)
 npx cdk deploy ChatbotBackendAppRunner-dev --context environment=dev
+# OR  
+npx cdk deploy ChatbotBackendFargate-dev --context environment=dev
 
 # 3. Deploy frontend last (imports backend URL)
 npx cdk deploy ChatbotFrontend-dev --context environment=dev
 ```
 
-**MCP Deployment Options**
+**Deployment Options**
 
-The project provides two deployment options for the MCP server:
+Both the backend and MCP server offer two deployment options:
 
-- **App Runner** (`ChatbotMcpAppRunner-{env}`): Simpler, cheaper, 2-minute timeout
-
+- **App Runner** (`ChatbotBackendAppRunner-{env}`, `ChatbotMcpAppRunner-{env}`): Simpler, cheaper, 2-minute timeout
   - Best for: Most business use cases, cost optimization, simple deployment
   - Limitations: 2-minute request timeout, less configuration control
 
-- **Fargate** (`ChatbotMcpFargate-{env}`): More robust, configurable, no timeout limits
+- **Fargate** (`ChatbotBackendFargate-{env}`, `ChatbotMcpFargate-{env}`): More robust, configurable, no timeout limits
   - Best for: Enterprise use cases, long-running operations, full control
   - Benefits: Configurable timeouts, auto-scaling, load balancer integration
 
