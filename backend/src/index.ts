@@ -8,17 +8,17 @@ import Anthropic from '@anthropic-ai/sdk';
 config({ path: join(process.cwd(), '..', '.env') });
 
 const fastify = Fastify({
-  logger: true
+  logger: true,
 });
 
 const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY
+  apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
 fastify.register(cors, {
   origin: true,
   credentials: true,
-  methods: ['GET', 'POST', 'OPTIONS']
+  methods: ['GET', 'POST', 'OPTIONS'],
 });
 
 fastify.register(FastifySSEPlugin);
@@ -27,7 +27,7 @@ fastify.get('/health', async (_, reply) => {
   reply.code(200).send({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    service: 'chatbot-backend'
+    service: 'chatbot-backend',
   });
 });
 
@@ -40,7 +40,7 @@ fastify.get('/chat/stream', async (request, reply) => {
 
   reply.sse({
     event: 'connected',
-    data: JSON.stringify({ status: 'connected' })
+    data: JSON.stringify({ status: 'connected' }),
   });
 
   try {
@@ -51,53 +51,55 @@ fastify.get('/chat/stream', async (request, reply) => {
         messages: [
           {
             role: 'user',
-            content: userMessage
-          }
+            content: userMessage,
+          },
         ],
-        ...(process.env.MCP_SERVER_URL && process.env.MCP_SERVER_URL.trim() !== '' ? { 
-          betas: ['mcp-client-2025-04-04'],
-          mcp_servers: [
-            {
-              type: 'url',
-              url: process.env.MCP_SERVER_URL,
-              name: 'weather-mcp'
+        ...(process.env.MCP_SERVER_URL && process.env.MCP_SERVER_URL.trim() !== ''
+          ? {
+              betas: ['mcp-client-2025-04-04'],
+              mcp_servers: [
+                {
+                  type: 'url',
+                  url: process.env.MCP_SERVER_URL,
+                  name: 'weather-mcp',
+                },
+              ],
             }
-          ]
-        } : {})
+          : {}),
       })
       .on('text', (textDelta: string, textSnapshot: string) => {
         console.log('TEXT DELTA:', textDelta);
         reply.sse({
           event: 'text',
-          data: JSON.stringify({ text: textDelta, snapshot: textSnapshot })
+          data: JSON.stringify({ text: textDelta, snapshot: textSnapshot }),
         });
       })
       .on('contentBlock', (contentBlock: object) => {
         console.log('CONTENT BLOCK:', contentBlock);
         reply.sse({
           event: 'contentBlock',
-          data: JSON.stringify(contentBlock)
+          data: JSON.stringify(contentBlock),
         });
       })
       .on('message', (message: object) => {
         console.log('MESSAGE:', message);
         reply.sse({
           event: 'message',
-          data: JSON.stringify(message)
+          data: JSON.stringify(message),
         });
       })
       .on('error', (error: Error) => {
         console.error('STREAM ERROR:', error);
         reply.sse({
           event: 'error',
-          data: JSON.stringify({ error: error.message })
+          data: JSON.stringify({ error: error.message }),
         });
       })
       .on('end', () => {
         console.log('STREAM END');
         reply.sse({
           event: 'done',
-          data: JSON.stringify({ status: 'completed' })
+          data: JSON.stringify({ status: 'completed' }),
         });
       });
 
@@ -107,7 +109,7 @@ fastify.get('/chat/stream', async (request, reply) => {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     reply.sse({
       event: 'error',
-      data: JSON.stringify({ error: errorMessage })
+      data: JSON.stringify({ error: errorMessage }),
     });
   }
 });

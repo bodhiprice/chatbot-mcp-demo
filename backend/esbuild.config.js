@@ -6,13 +6,6 @@ await build({
   platform: 'node',
   format: 'esm',
   outfile: 'dist/index.js',
-  external: [
-    '@fastify/cors',
-    'fastify', 
-    'dotenv',
-    '@anthropic-ai/sdk',
-    '@modelcontextprotocol/sdk',
-    'fastify-sse-v2'
-  ],
-  target: 'node22'
+  external: ['@fastify/cors', 'fastify', 'dotenv', '@anthropic-ai/sdk', '@modelcontextprotocol/sdk', 'fastify-sse-v2'],
+  target: 'node22',
 });

@@ -6,13 +6,6 @@ await build({
   platform: 'node',
   format: 'esm',
   outfile: 'dist/index.js',
-  external: [
-    '@fastify/cors',
-    'fastify', 
-    'dotenv',
-    '@modelcontextprotocol/sdk',
-    'zod',
-    'zod-to-json-schema'
-  ],
-  target: 'node22'
+  external: ['@fastify/cors', 'fastify', 'dotenv', '@modelcontextprotocol/sdk', 'zod', 'zod-to-json-schema'],
+  target: 'node22',
 });

@@ -5,7 +5,7 @@ MCP (Model Context Protocol) server providing weather data access via National W
 ## Features
 
 - **Current Weather**: Real-time weather conditions for coordinate locations
-- **Weather Forecast**: Multi-day forecasts (1-7 days) with detailed periods  
+- **Weather Forecast**: Multi-day forecasts (1-7 days) with detailed periods
 - **Weather Alerts**: Active weather warnings and alerts
 - **Coordinate Input**: Requires latitude,longitude coordinates
 - **No API Keys Required**: Uses free National Weather Service API
@@ -13,18 +13,21 @@ MCP (Model Context Protocol) server providing weather data access via National W
 ## Tools Available
 
 ### get_current_weather
+
 Get current weather conditions for a specified coordinate location.
 
 **Input**: `{ location: string }`
 **Example**: `{ "location": "41.8781,-87.6298" }`
 
-### get_weather_forecast  
+### get_weather_forecast
+
 Get weather forecast for a specified coordinate location.
 
 **Input**: `{ location: string, days?: number }`
 **Example**: `{ "location": "40.7128,-74.0060", "days": 3 }`
 
 ### get_weather_alerts
+
 Get active weather alerts and warnings for a specified coordinate location.
 
 **Input**: `{ location: string }`
@@ -33,7 +36,8 @@ Get active weather alerts and warnings for a specified coordinate location.
 ## Location Format
 
 All tools require coordinates in latitude,longitude format:
-- **Format**: "latitude,longitude"  
+
+- **Format**: "latitude,longitude"
 - **Example**: "40.7128,-74.0060" (New York City)
 - **Example**: "34.0522,-118.2437" (Los Angeles)
 
@@ -59,6 +63,7 @@ NODE_ENV=development
 ## API Response Format
 
 All tools return JSON responses with consistent structure:
+
 - Success responses include location, coordinates, and relevant weather data
 - Error responses include error message and original location
 - All responses include source attribution to National Weather Service

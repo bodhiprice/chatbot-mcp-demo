@@ -20,7 +20,7 @@ This project demonstrates a clean, scalable approach to building AI applications
 
 - **Frontend**: Vite-based React application with Server-Sent Events (SSE) for real-time streaming
 - **Backend**: Node.js service with choice of AWS App Runner or Fargate deployment
-- **MCP Server**: Fastify-based service with choice of AWS App Runner or Fargate deployment  
+- **MCP Server**: Fastify-based service with choice of AWS App Runner or Fargate deployment
 - **Infrastructure**: Single-file AWS CDK for complete infrastructure as code
 
 ## Key Architectural Decisions
@@ -128,7 +128,7 @@ npx cdk deploy ChatbotMcpFargate-dev --context environment=dev
 
 # 2. Deploy backend second (imports MCP URL, exports backend URL)
 npx cdk deploy ChatbotBackendAppRunner-dev --context environment=dev
-# OR  
+# OR
 npx cdk deploy ChatbotBackendFargate-dev --context environment=dev
 
 # 3. Deploy frontend last (imports backend URL)
