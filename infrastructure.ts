@@ -61,6 +61,14 @@ class BackendAppRunnerStack extends Stack {
           }
         }
       },
+      healthCheckConfiguration: {
+        protocol: 'HTTP',
+        path: '/health',
+        interval: 10,
+        timeout: 5,
+        healthyThreshold: 1,
+        unhealthyThreshold: 5
+      },
       instanceConfiguration: {
         cpu: '512',
         memory: '1024',
@@ -186,6 +194,14 @@ class McpAppRunnerStack extends Stack {
             ]
           }
         }
+      },
+      healthCheckConfiguration: {
+        protocol: 'HTTP',
+        path: '/health',
+        interval: 10,
+        timeout: 5,
+        healthyThreshold: 1,
+        unhealthyThreshold: 5
       },
       instanceConfiguration: {
         cpu: '512',
