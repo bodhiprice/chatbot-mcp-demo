@@ -1,4 +1,4 @@
-import { App, Stack, StackProps, CfnOutput, Duration, Fn } from 'aws-cdk-lib';
+import { App, Stack, StackProps, CfnOutput, Duration, Fn, RemovalPolicy, DockerImage } from 'aws-cdk-lib';
 import * as assets from 'aws-cdk-lib/aws-ecr-assets';
 import * as apprunner from 'aws-cdk-lib/aws-apprunner';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
@@ -6,6 +6,10 @@ import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as ecsPatterns from 'aws-cdk-lib/aws-ecs-patterns';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
+import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
+import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import { Construct } from 'constructs';
 
 interface ChatbotStackProps extends StackProps {
@@ -16,7 +20,61 @@ class FrontendStack extends Stack {
   constructor(scope: Construct, id: string, props: ChatbotStackProps) {
     super(scope, id, props);
 
-    // S3 bucket and CloudFront distribution
+    const backendUrl = Fn.importValue(`ChatbotBackendServiceUrl-${props.environment}`);
+
+    const bucket = new s3.Bucket(this, 'FrontendBucket', {
+      bucketName: `chatbot-frontend-${props.environment}-${this.account}`,
+      websiteIndexDocument: 'index.html',
+      websiteErrorDocument: 'index.html',
+      publicReadAccess: true,
+      blockPublicAccess: new s3.BlockPublicAccess({
+        blockPublicAcls: false,
+        blockPublicPolicy: false,
+        ignorePublicAcls: false,
+        restrictPublicBuckets: false,
+      }),
+      removalPolicy: RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
+    });
+
+    const distribution = new cloudfront.Distribution(this, 'FrontendDistribution', {
+      defaultBehavior: {
+        origin: new origins.S3StaticWebsiteOrigin(bucket),
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+      },
+      defaultRootObject: 'index.html',
+      errorResponses: [
+        {
+          httpStatus: 404,
+          responseHttpStatus: 200,
+          responsePagePath: '/index.html',
+        },
+      ],
+    });
+
+    new s3deploy.BucketDeployment(this, 'FrontendDeployment', {
+      sources: [
+        s3deploy.Source.asset('./frontend', {
+          bundling: {
+            image: DockerImage.fromRegistry('node:22-alpine'),
+            command: ['sh', '-c', ['npm ci', 'npm run build', 'cp -r dist/* /asset-output/'].join(' && ')],
+            environment: {
+              VITE_BACKEND_URL: backendUrl,
+            },
+          },
+        }),
+      ],
+      destinationBucket: bucket,
+      distribution,
+      distributionPaths: ['/*'],
+    });
+
+    new CfnOutput(this, 'FrontendUrl', {
+      value: `https://${distribution.distributionDomainName}`,
+      description: 'Frontend URL (CloudFront)',
+      exportName: `ChatbotFrontendUrl-${props.environment}`,
+    });
   }
 }
 
@@ -26,25 +84,25 @@ class BackendAppRunnerStack extends Stack {
 
     const dockerAsset = new assets.DockerImageAsset(this, 'BackendImage', {
       directory: './backend',
-      platform: assets.Platform.LINUX_AMD64
+      platform: assets.Platform.LINUX_AMD64,
     });
 
     const appRunnerRole = new iam.Role(this, 'ServiceRole', {
       assumedBy: new iam.ServicePrincipal('build.apprunner.amazonaws.com'),
       managedPolicies: [
-        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSAppRunnerServicePolicyForECRAccess')
-      ]
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSAppRunnerServicePolicyForECRAccess'),
+      ],
     });
 
     const instanceRole = new iam.Role(this, 'InstanceRole', {
-      assumedBy: new iam.ServicePrincipal('tasks.apprunner.amazonaws.com')
+      assumedBy: new iam.ServicePrincipal('tasks.apprunner.amazonaws.com'),
     });
 
     const appRunnerService = new apprunner.CfnService(this, 'BackendService', {
       serviceName: `chatbot-backend-apprunner-${props.environment}`,
       sourceConfiguration: {
         authenticationConfiguration: {
-          accessRoleArn: appRunnerRole.roleArn
+          accessRoleArn: appRunnerRole.roleArn,
         },
         autoDeploymentsEnabled: false,
         imageRepository: {
@@ -56,10 +114,10 @@ class BackendAppRunnerStack extends Stack {
               { name: 'NODE_ENV', value: 'production' },
               { name: 'PORT', value: '3001' },
               { name: 'ANTHROPIC_API_KEY', value: process.env.ANTHROPIC_API_KEY || '' },
-              { name: 'MCP_SERVER_URL', value: Fn.importValue(`ChatbotMcpServiceUrl-${props.environment}`) }
-            ]
-          }
-        }
+              { name: 'MCP_SERVER_URL', value: Fn.importValue(`ChatbotMcpServiceUrl-${props.environment}`) },
+            ],
+          },
+        },
       },
       healthCheckConfiguration: {
         protocol: 'HTTP',
@@ -67,21 +125,20 @@ class BackendAppRunnerStack extends Stack {
         interval: 10,
         timeout: 5,
         healthyThreshold: 1,
-        unhealthyThreshold: 5
+        unhealthyThreshold: 5,
       },
       instanceConfiguration: {
         cpu: '512',
         memory: '1024',
-        instanceRoleArn: instanceRole.roleArn
-      }
+        instanceRoleArn: instanceRole.roleArn,
+      },
     });
 
     new CfnOutput(this, 'BackendServiceUrl', {
       value: `https://${appRunnerService.attrServiceUrl}`,
       description: 'Backend Service URL (App Runner)',
-      exportName: `ChatbotBackendServiceUrl-${props.environment}`
+      exportName: `ChatbotBackendServiceUrl-${props.environment}`,
     });
-
   }
 }
 
@@ -93,12 +150,12 @@ class BackendFargateStack extends Stack {
 
     const cluster = new ecs.Cluster(this, 'BackendCluster', {
       vpc,
-      clusterName: `backend-cluster-${props.environment}`
+      clusterName: `backend-cluster-${props.environment}`,
     });
 
     const logGroup = new logs.LogGroup(this, 'BackendLogGroup', {
       logGroupName: `/ecs/backend-server-${props.environment}`,
-      retention: logs.RetentionDays.ONE_WEEK
+      retention: logs.RetentionDays.ONE_WEEK,
     });
 
     const fargateService = new ecsPatterns.ApplicationLoadBalancedFargateService(this, 'BackendFargateService', {
@@ -106,25 +163,25 @@ class BackendFargateStack extends Stack {
       serviceName: `backend-server-${props.environment}`,
       taskImageOptions: {
         image: ecs.ContainerImage.fromAsset('./backend', {
-          platform: assets.Platform.LINUX_AMD64
+          platform: assets.Platform.LINUX_AMD64,
         }),
         containerPort: 3001,
         environment: {
           NODE_ENV: 'production',
           PORT: '3001',
           ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || '',
-          MCP_SERVER_URL: process.env.MCP_SERVER_URL || ''
+          MCP_SERVER_URL: process.env.MCP_SERVER_URL || '',
         },
         logDriver: ecs.LogDrivers.awsLogs({
           streamPrefix: 'backend-server',
-          logGroup
-        })
+          logGroup,
+        }),
       },
       memoryLimitMiB: 1024,
       cpu: 512,
       desiredCount: 1,
       publicLoadBalancer: true,
-      platformVersion: ecs.FargatePlatformVersion.LATEST
+      platformVersion: ecs.FargatePlatformVersion.LATEST,
     });
 
     fargateService.targetGroup.configureHealthCheck({
@@ -133,26 +190,25 @@ class BackendFargateStack extends Stack {
       interval: Duration.seconds(30),
       timeout: Duration.seconds(5),
       healthyThresholdCount: 2,
-      unhealthyThresholdCount: 3
+      unhealthyThresholdCount: 3,
     });
 
     const scalableTarget = fargateService.service.autoScaleTaskCount({
       minCapacity: 1,
-      maxCapacity: 3
+      maxCapacity: 3,
     });
 
     scalableTarget.scaleOnCpuUtilization('CpuScaling', {
       targetUtilizationPercent: 70,
       scaleOutCooldown: Duration.minutes(2),
-      scaleInCooldown: Duration.minutes(5)
+      scaleInCooldown: Duration.minutes(5),
     });
 
     new CfnOutput(this, 'BackendServiceUrl', {
       value: `http://${fargateService.loadBalancer.loadBalancerDnsName}`,
       description: 'Backend Service URL (Fargate)',
-      exportName: `ChatbotBackendServiceUrl-${props.environment}`
+      exportName: `ChatbotBackendServiceUrl-${props.environment}`,
     });
-
   }
 }
 
@@ -162,25 +218,25 @@ class McpAppRunnerStack extends Stack {
 
     const dockerAsset = new assets.DockerImageAsset(this, 'WeatherMcpImage', {
       directory: './mcp-server',
-      platform: assets.Platform.LINUX_AMD64
+      platform: assets.Platform.LINUX_AMD64,
     });
 
     const appRunnerRole = new iam.Role(this, 'ServiceRole', {
       assumedBy: new iam.ServicePrincipal('build.apprunner.amazonaws.com'),
       managedPolicies: [
-        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSAppRunnerServicePolicyForECRAccess')
-      ]
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSAppRunnerServicePolicyForECRAccess'),
+      ],
     });
 
     const instanceRole = new iam.Role(this, 'InstanceRole', {
-      assumedBy: new iam.ServicePrincipal('tasks.apprunner.amazonaws.com')
+      assumedBy: new iam.ServicePrincipal('tasks.apprunner.amazonaws.com'),
     });
 
     const appRunnerService = new apprunner.CfnService(this, 'WeatherMcpService', {
       serviceName: `weather-mcp-apprunner-${props.environment}`,
       sourceConfiguration: {
         authenticationConfiguration: {
-          accessRoleArn: appRunnerRole.roleArn
+          accessRoleArn: appRunnerRole.roleArn,
         },
         autoDeploymentsEnabled: false,
         imageRepository: {
@@ -190,10 +246,10 @@ class McpAppRunnerStack extends Stack {
             port: '3000',
             runtimeEnvironmentVariables: [
               { name: 'NODE_ENV', value: 'production' },
-              { name: 'PORT', value: '3000' }
-            ]
-          }
-        }
+              { name: 'PORT', value: '3000' },
+            ],
+          },
+        },
       },
       healthCheckConfiguration: {
         protocol: 'HTTP',
@@ -201,21 +257,20 @@ class McpAppRunnerStack extends Stack {
         interval: 10,
         timeout: 5,
         healthyThreshold: 1,
-        unhealthyThreshold: 5
+        unhealthyThreshold: 5,
       },
       instanceConfiguration: {
         cpu: '512',
         memory: '1024',
-        instanceRoleArn: instanceRole.roleArn
-      }
+        instanceRoleArn: instanceRole.roleArn,
+      },
     });
 
     new CfnOutput(this, 'WeatherMcpServiceUrl', {
       value: `https://${appRunnerService.attrServiceUrl}`,
       description: 'Weather MCP Server URL (App Runner)',
-      exportName: `ChatbotMcpServiceUrl-${props.environment}`
+      exportName: `ChatbotMcpServiceUrl-${props.environment}`,
     });
-
   }
 }
 
@@ -227,12 +282,12 @@ class McpFargateStack extends Stack {
 
     const cluster = new ecs.Cluster(this, 'McpCluster', {
       vpc,
-      clusterName: `mcp-cluster-${props.environment}`
+      clusterName: `mcp-cluster-${props.environment}`,
     });
 
     const logGroup = new logs.LogGroup(this, 'McpLogGroup', {
       logGroupName: `/ecs/mcp-server-${props.environment}`,
-      retention: logs.RetentionDays.ONE_WEEK
+      retention: logs.RetentionDays.ONE_WEEK,
     });
 
     const fargateService = new ecsPatterns.ApplicationLoadBalancedFargateService(this, 'McpFargateService', {
@@ -240,23 +295,23 @@ class McpFargateStack extends Stack {
       serviceName: `mcp-server-${props.environment}`,
       taskImageOptions: {
         image: ecs.ContainerImage.fromAsset('./mcp-server', {
-          platform: assets.Platform.LINUX_AMD64
+          platform: assets.Platform.LINUX_AMD64,
         }),
         containerPort: 3000,
         environment: {
           NODE_ENV: 'production',
-          PORT: '3000'
+          PORT: '3000',
         },
         logDriver: ecs.LogDrivers.awsLogs({
           streamPrefix: 'mcp-server',
-          logGroup
-        })
+          logGroup,
+        }),
       },
       memoryLimitMiB: 1024,
       cpu: 512,
       desiredCount: 1,
       publicLoadBalancer: true,
-      platformVersion: ecs.FargatePlatformVersion.LATEST
+      platformVersion: ecs.FargatePlatformVersion.LATEST,
     });
 
     fargateService.targetGroup.configureHealthCheck({
@@ -265,25 +320,24 @@ class McpFargateStack extends Stack {
       interval: Duration.seconds(30),
       timeout: Duration.seconds(5),
       healthyThresholdCount: 2,
-      unhealthyThresholdCount: 3
+      unhealthyThresholdCount: 3,
     });
 
     const scalableTarget = fargateService.service.autoScaleTaskCount({
       minCapacity: 1,
-      maxCapacity: 3
+      maxCapacity: 3,
     });
 
     scalableTarget.scaleOnCpuUtilization('CpuScaling', {
       targetUtilizationPercent: 70,
       scaleOutCooldown: Duration.minutes(2),
-      scaleInCooldown: Duration.minutes(5)
+      scaleInCooldown: Duration.minutes(5),
     });
 
     new CfnOutput(this, 'WeatherMcpServiceUrl', {
       value: `http://${fargateService.loadBalancer.loadBalancerDnsName}`,
-      description: 'Weather MCP Server URL (Fargate)'
+      description: 'Weather MCP Server URL (Fargate)',
     });
-
   }
 }
 
@@ -291,7 +345,7 @@ const app = new App();
 const environment = app.node.tryGetContext('environment') || 'dev';
 const env = {
   account: process.env.CDK_DEFAULT_ACCOUNT,
-  region: process.env.CDK_DEFAULT_REGION
+  region: process.env.CDK_DEFAULT_REGION,
 };
 
 const stackProps: ChatbotStackProps = { env, environment };
