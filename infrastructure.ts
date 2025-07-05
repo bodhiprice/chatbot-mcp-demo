@@ -41,7 +41,24 @@ class FrontendStack extends Stack {
       defaultBehavior: {
         origin: new origins.S3StaticWebsiteOrigin(bucket),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-        cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+        cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+      },
+      additionalBehaviors: {
+        '/assets/*': {
+          origin: new origins.S3StaticWebsiteOrigin(bucket),
+          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+        },
+        '*.js': {
+          origin: new origins.S3StaticWebsiteOrigin(bucket),
+          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+        },
+        '*.css': {
+          origin: new origins.S3StaticWebsiteOrigin(bucket),
+          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+        },
       },
       defaultRootObject: 'index.html',
       errorResponses: [
@@ -58,7 +75,7 @@ class FrontendStack extends Stack {
         s3deploy.Source.asset('./frontend', {
           bundling: {
             image: DockerImage.fromRegistry('node:22-alpine'),
-            command: ['sh', '-c', ['npm ci', 'npm run build', 'cp -r dist/* /asset-output/'].join(' && ')],
+            command: ['sh', '-c', ['rm -rf node_modules package-lock.json', 'npm install --cache /tmp/.npm', 'npm run build', 'cp -r dist/* /asset-output/'].join(' && ')],
             environment: {
               VITE_BACKEND_URL: backendUrl,
             },
