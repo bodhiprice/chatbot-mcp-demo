@@ -12,7 +12,10 @@
   },
   "dependencies": {
     "react": "^18.3.0",
-    "react-dom": "^18.3.0"
+    "react-dom": "^18.3.0",
+    "antd": "^5.21.4",
+    "@ant-design/icons": "^5.4.0",
+    "@microsoft/fetch-event-source": "^2.0.1"
   },
   "devDependencies": {
     "@types/react": "^18.3.0",
