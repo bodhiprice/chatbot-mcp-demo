@@ -23,6 +23,10 @@ export default [
         __dirname: 'readonly',
         __filename: 'readonly',
         global: 'readonly',
+        document: 'readonly',
+        window: 'readonly',
+        AbortController: 'readonly',
+        React: 'readonly',
       },
     },
     plugins: {

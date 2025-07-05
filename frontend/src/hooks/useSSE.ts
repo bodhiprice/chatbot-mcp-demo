@@ -13,7 +13,7 @@ export function useSSE() {
 
   const connect = useCallback((message: string, options: UseSSEOptions) => {
     const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
-    
+
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
