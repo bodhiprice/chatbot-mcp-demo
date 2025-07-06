@@ -1,6 +1,6 @@
 # MCP Chatbot Demo
 
-A demonstration of Model Context Protocol (MCP) architecture demonstarting how to build scalable, streaming AI applications on [cloud infrastructure.
+A demonstration of Model Context Protocol (MCP) architecture demonstrating how to build scalable, streaming AI applications on cloud infrastructure.
 
 ## What is MCP?
 
@@ -105,15 +105,18 @@ npm install
 # Bootstrap CDK (first time only per AWS account/region)
 npx cdk bootstrap
 
-# Deploy all services
-npx cdk deploy --all --context environment=dev
+# Deploy all services with App Runner
+npx cdk deploy --all --context environment=dev --context deploymentType=apprunner --require-approval never
+
+# Deploy all services with Fargate
+npx cdk deploy --all --context environment=dev --context deploymentType=fargate --require-approval never
 
 # Deploy to production
 export ANTHROPIC_API_KEY=your_production_key
-npx cdk deploy --all --context environment=prod
+npx cdk deploy --all --context environment=prod --context deploymentType=apprunner --require-approval never
 
 # Destroy environment when no longer needed
-npx cdk destroy --all --context environment=dev
+npx cdk destroy --all --context environment=dev --context deploymentType=apprunner
 ```
 
 **Manual Step-by-Step Deployment (Alternative)**
@@ -122,17 +125,17 @@ If you prefer to deploy services individually, follow this order due to cross-st
 
 ```bash
 # 1. Deploy MCP server first (exports URL for backend)
-npx cdk deploy ChatbotMcpAppRunner-dev --context environment=dev
+npx cdk deploy ChatbotMcp-dev --context environment=dev --context deploymentType=apprunner --require-approval never
 # OR
-npx cdk deploy ChatbotMcpFargate-dev --context environment=dev
+npx cdk deploy ChatbotMcp-dev --context environment=dev --context deploymentType=fargate --require-approval never
 
 # 2. Deploy backend second (imports MCP URL, exports backend URL)
-npx cdk deploy ChatbotBackendAppRunner-dev --context environment=dev
+npx cdk deploy ChatbotBackend-dev --context environment=dev --context deploymentType=apprunner --require-approval never
 # OR
-npx cdk deploy ChatbotBackendFargate-dev --context environment=dev
+npx cdk deploy ChatbotBackend-dev --context environment=dev --context deploymentType=fargate --require-approval never
 
 # 3. Deploy frontend last (imports backend URL)
-npx cdk deploy ChatbotFrontend-dev --context environment=dev
+npx cdk deploy ChatbotFrontend-dev --context environment=dev --require-approval never
 ```
 
 **Deployment Options**
