@@ -45,12 +45,29 @@ function ChatInterface() {
     };
     setMessages((prev) => [...prev, initialAssistantMessage]);
 
+    const contentBlocks: string[] = [];
+    let streamingContent = '';
+
     connect(messageToSend, {
-      onText: (_, snapshot) => {
+      onText: (textDelta, snapshot) => {
+        streamingContent = snapshot || streamingContent + textDelta;
+        const fullContent = [...contentBlocks, streamingContent].join('\n\n');
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === assistantMessageId
-              ? { ...msg, content: snapshot }
+              ? { ...msg, content: fullContent }
+              : msg
+          )
+        );
+      },
+      onContentBlock: (blockText: string) => {
+        contentBlocks.push(blockText);
+        streamingContent = '';
+        const fullContent = contentBlocks.join('\n\n');
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMessageId
+              ? { ...msg, content: fullContent }
               : msg
           )
         );

@@ -3,6 +3,7 @@ import { fetchEventSource } from '@microsoft/fetch-event-source';
 
 interface UseSSEOptions {
   onText: (text: string, snapshot: string) => void;
+  onContentBlock?: (blockText: string) => void;
   onError?: (error: string) => void;
   onComplete?: () => void;
 }
@@ -43,6 +44,15 @@ export function useSSE() {
             options.onText(data.text, data.snapshot);
           } catch (error) {
             console.error('Error parsing text event:', error);
+          }
+        } else if (event.event === 'contentBlock') {
+          try {
+            const contentBlock = JSON.parse(event.data);
+            if (contentBlock.type === 'text' && contentBlock.text) {
+              options.onContentBlock?.(contentBlock.text);
+            }
+          } catch (error) {
+            console.error('Error parsing contentBlock event:', error);
           }
         } else if (event.event === 'done') {
           console.log('SSE Done:', event.data);
