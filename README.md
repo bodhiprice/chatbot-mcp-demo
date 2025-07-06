@@ -116,25 +116,17 @@ export ANTHROPIC_API_KEY=your_production_key
 npx cdk deploy --all --context environment=prod --context deploymentType=apprunner --require-approval never
 
 # Destroy environment when no longer needed
-npx cdk destroy --all --context environment=dev --context deploymentType=apprunner
+npx cdk destroy --all --context environment=dev --context deploymentType=apprunner --require-approval never
 ```
 
-**Manual Step-by-Step Deployment (Alternative)**
+**Individual Stack Deployment (Alternative)**
 
-If you prefer to deploy services individually, follow this order due to cross-stack dependencies. See [Deployment Options](#deployment-options) below for choosing between App Runner and Fargate.
+If needed, you can deploy services individually in dependency order:
 
 ```bash
-# 1. Deploy MCP server first (exports URL for backend)
+# Deploy in order: MCP → Backend → Frontend
 npx cdk deploy ChatbotMcp-dev --context environment=dev --context deploymentType=apprunner --require-approval never
-# OR
-npx cdk deploy ChatbotMcp-dev --context environment=dev --context deploymentType=fargate --require-approval never
-
-# 2. Deploy backend second (imports MCP URL, exports backend URL)
 npx cdk deploy ChatbotBackend-dev --context environment=dev --context deploymentType=apprunner --require-approval never
-# OR
-npx cdk deploy ChatbotBackend-dev --context environment=dev --context deploymentType=fargate --require-approval never
-
-# 3. Deploy frontend last (imports backend URL)
 npx cdk deploy ChatbotFrontend-dev --context environment=dev --require-approval never
 ```
 
@@ -142,11 +134,11 @@ npx cdk deploy ChatbotFrontend-dev --context environment=dev --require-approval 
 
 Both the backend and MCP server offer two deployment options:
 
-- **App Runner** (`ChatbotBackendAppRunner-{env}`, `ChatbotMcpAppRunner-{env}`): Simpler, cheaper, 2-minute timeout
+- **App Runner** (`ChatbotBackend-{env}`, `ChatbotMcp-{env}`): Simpler, cheaper, 2-minute timeout
   - Best for: Most business use cases, cost optimization, simple deployment
   - Limitations: 2-minute request timeout, less configuration control
 
-- **Fargate** (`ChatbotBackendFargate-{env}`, `ChatbotMcpFargate-{env}`): More robust, configurable, no timeout limits
+- **Fargate** (`ChatbotBackend-{env}`, `ChatbotMcp-{env}`): More robust, configurable, no timeout limits
   - Best for: Enterprise use cases, long-running operations, full control
   - Benefits: Configurable timeouts, auto-scaling, load balancer integration
 
@@ -165,21 +157,6 @@ The project supports multiple environments with manual promotion control:
 
 Each environment is completely isolated with its own AWS resources.
 
-## Authentication Considerations
-
-### SSE Authentication Challenges
-
-Server-Sent Events (SSE) using the native `EventSource` API have a fundamental limitation: **they do not support custom headers**, including `Authorization: Bearer <token>`. This is a well-documented constraint of the EventSource specification.
-
-### Available Authentication Patterns
-
-When implementing SSE authentication in applications, developers have several proven approaches:
-
-1. **Query Parameter Authentication**: Pass tokens via URL parameters (`?token=<jwt>`) - simple and secure over HTTPS
-2. **Cookie-Based Authentication**: Use HTTP-only cookies with `withCredentials: true` for automatic credential inclusion
-3. **fetch-event-source Library**: Microsoft's `@microsoft/fetch-event-source` package enables full header support including Authorization headers
-4. **Fetch API Streaming**: Manual implementation using `fetch()` with `ReadableStream` for complete header control
-
 ### Demo Architecture Decision
 
 This demo implements a **thin pass-through architecture** where the backend acts as an authentication and API key proxy. This pattern:
@@ -187,7 +164,6 @@ This demo implements a **thin pass-through architecture** where the backend acts
 - Hides the Anthropic API key from client-side code
 - Enables future authentication without fundamental architecture changes
 - Demonstrates real-world SSE streaming patterns
-- Provides a foundation for production authentication implementations
 
 ## Cost Optimization
 
