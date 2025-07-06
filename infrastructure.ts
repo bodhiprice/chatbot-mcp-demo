@@ -10,6 +10,7 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
+import * as ssm from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 
 interface ChatbotStackProps extends StackProps {
@@ -20,7 +21,10 @@ class FrontendStack extends Stack {
   constructor(scope: Construct, id: string, props: ChatbotStackProps) {
     super(scope, id, props);
 
-    const backendUrl = Fn.importValue(`ChatbotBackendServiceUrl-${props.environment}`);
+    const backendUrl = ssm.StringParameter.valueForStringParameter(
+      this, 
+      `/chatbot/${props.environment}/backend-url`
+    );
 
     const bucket = new s3.Bucket(this, 'FrontendBucket', {
       bucketName: `chatbot-frontend-${props.environment}-${this.account}`,
@@ -99,6 +103,11 @@ class BackendAppRunnerStack extends Stack {
   constructor(scope: Construct, id: string, props: ChatbotStackProps) {
     super(scope, id, props);
 
+    const mcpUrl = ssm.StringParameter.valueForStringParameter(
+      this,
+      `/chatbot/${props.environment}/mcp-url`
+    );
+
     const dockerAsset = new assets.DockerImageAsset(this, 'BackendImage', {
       directory: './backend',
       platform: assets.Platform.LINUX_AMD64,
@@ -131,7 +140,7 @@ class BackendAppRunnerStack extends Stack {
               { name: 'NODE_ENV', value: 'production' },
               { name: 'PORT', value: '3001' },
               { name: 'ANTHROPIC_API_KEY', value: process.env.ANTHROPIC_API_KEY || '' },
-              { name: 'MCP_SERVER_URL', value: Fn.importValue(`ChatbotMcpServiceUrl-${props.environment}`) },
+              { name: 'MCP_SERVER_URL', value: mcpUrl },
             ],
           },
         },
@@ -151,8 +160,16 @@ class BackendAppRunnerStack extends Stack {
       },
     });
 
+    const backendUrl = `https://${appRunnerService.attrServiceUrl}`;
+
+    new ssm.StringParameter(this, 'BackendUrlParameter', {
+      parameterName: `/chatbot/${props.environment}/backend-url`,
+      stringValue: backendUrl,
+      description: 'Backend Service URL for frontend configuration',
+    });
+
     new CfnOutput(this, 'BackendServiceUrl', {
-      value: `https://${appRunnerService.attrServiceUrl}`,
+      value: backendUrl,
       description: 'Backend Service URL (App Runner)',
       exportName: `ChatbotBackendServiceUrl-${props.environment}`,
     });
@@ -162,6 +179,11 @@ class BackendAppRunnerStack extends Stack {
 class BackendFargateStack extends Stack {
   constructor(scope: Construct, id: string, props: ChatbotStackProps) {
     super(scope, id, props);
+
+    const mcpUrl = ssm.StringParameter.valueForStringParameter(
+      this,
+      `/chatbot/${props.environment}/mcp-url`
+    );
 
     const vpc = ec2.Vpc.fromLookup(this, 'DefaultVpc', { isDefault: true });
 
@@ -187,7 +209,7 @@ class BackendFargateStack extends Stack {
           NODE_ENV: 'production',
           PORT: '3001',
           ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || '',
-          MCP_SERVER_URL: process.env.MCP_SERVER_URL || '',
+          MCP_SERVER_URL: mcpUrl,
         },
         logDriver: ecs.LogDrivers.awsLogs({
           streamPrefix: 'backend-server',
@@ -221,8 +243,16 @@ class BackendFargateStack extends Stack {
       scaleInCooldown: Duration.minutes(5),
     });
 
+    const backendUrl = `http://${fargateService.loadBalancer.loadBalancerDnsName}`;
+
+    new ssm.StringParameter(this, 'BackendUrlParameter', {
+      parameterName: `/chatbot/${props.environment}/backend-url`,
+      stringValue: backendUrl,
+      description: 'Backend Service URL for frontend configuration',
+    });
+
     new CfnOutput(this, 'BackendServiceUrl', {
-      value: `http://${fargateService.loadBalancer.loadBalancerDnsName}`,
+      value: backendUrl,
       description: 'Backend Service URL (Fargate)',
       exportName: `ChatbotBackendServiceUrl-${props.environment}`,
     });
@@ -283,8 +313,16 @@ class McpAppRunnerStack extends Stack {
       },
     });
 
+    const mcpUrl = `https://${appRunnerService.attrServiceUrl}`;
+
+    new ssm.StringParameter(this, 'McpUrlParameter', {
+      parameterName: `/chatbot/${props.environment}/mcp-url`,
+      stringValue: mcpUrl,
+      description: 'MCP Server URL for backend configuration',
+    });
+
     new CfnOutput(this, 'WeatherMcpServiceUrl', {
-      value: `https://${appRunnerService.attrServiceUrl}`,
+      value: mcpUrl,
       description: 'Weather MCP Server URL (App Runner)',
       exportName: `ChatbotMcpServiceUrl-${props.environment}`,
     });
@@ -351,15 +389,25 @@ class McpFargateStack extends Stack {
       scaleInCooldown: Duration.minutes(5),
     });
 
+    const mcpUrl = `http://${fargateService.loadBalancer.loadBalancerDnsName}`;
+
+    new ssm.StringParameter(this, 'McpUrlParameter', {
+      parameterName: `/chatbot/${props.environment}/mcp-url`,
+      stringValue: mcpUrl,
+      description: 'MCP Server URL for backend configuration',
+    });
+
     new CfnOutput(this, 'WeatherMcpServiceUrl', {
-      value: `http://${fargateService.loadBalancer.loadBalancerDnsName}`,
+      value: mcpUrl,
       description: 'Weather MCP Server URL (Fargate)',
+      exportName: `ChatbotMcpServiceUrl-${props.environment}`,
     });
   }
 }
 
 const app = new App();
 const environment = app.node.tryGetContext('environment') || 'dev';
+const deploymentType = app.node.tryGetContext('deploymentType') || 'apprunner';
 const env = {
   account: process.env.CDK_DEFAULT_ACCOUNT,
   region: process.env.CDK_DEFAULT_REGION,
@@ -367,8 +415,20 @@ const env = {
 
 const stackProps: ChatbotStackProps = { env, environment };
 
-new FrontendStack(app, `ChatbotFrontend-${environment}`, stackProps);
-new BackendAppRunnerStack(app, `ChatbotBackendAppRunner-${environment}`, stackProps);
-new BackendFargateStack(app, `ChatbotBackendFargate-${environment}`, stackProps);
-new McpAppRunnerStack(app, `ChatbotMcpAppRunner-${environment}`, stackProps);
-new McpFargateStack(app, `ChatbotMcpFargate-${environment}`, stackProps);
+const frontendStack = new FrontendStack(app, `ChatbotFrontend-${environment}`, stackProps);
+
+if (deploymentType === 'apprunner') {
+  const backendStack = new BackendAppRunnerStack(app, `ChatbotBackend-${environment}`, stackProps);
+  const mcpStack = new McpAppRunnerStack(app, `ChatbotMcp-${environment}`, stackProps);
+  
+  frontendStack.addDependency(backendStack);
+  backendStack.addDependency(mcpStack);
+} else if (deploymentType === 'fargate') {
+  const backendStack = new BackendFargateStack(app, `ChatbotBackend-${environment}`, stackProps);
+  const mcpStack = new McpFargateStack(app, `ChatbotMcp-${environment}`, stackProps);
+  
+  frontendStack.addDependency(backendStack);
+  backendStack.addDependency(mcpStack);
+} else {
+  throw new Error(`Invalid deploymentType: ${deploymentType}. Must be 'apprunner' or 'fargate'`);
+}
