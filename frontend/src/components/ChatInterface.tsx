@@ -3,15 +3,34 @@ import { Card, Input, Button, Space, Avatar, Typography } from 'antd';
 import { SendOutlined, StopOutlined, UserOutlined, LoadingOutlined } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import { useSSE } from '../hooks/useSSE';
+import { useTypingEffect } from '../hooks/useTypingEffect';
 
 const { TextArea } = Input;
 const { Text } = Typography;
+
+function MessageContent({ message }: { message: Message }) {
+  const typedContent = useTypingEffect(message.content, {
+    enabled: message.isStreaming,
+    speed: 15,
+  });
+
+  const displayContent = message.isStreaming ? typedContent : message.content;
+
+  return displayContent ? (
+    <ReactMarkdown>{displayContent}</ReactMarkdown>
+  ) : (
+    <Text>
+      <LoadingOutlined spin />{' '}
+    </Text>
+  );
+}
 
 interface Message {
   id: string;
   type: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  isStreaming?: boolean;
 }
 
 function ChatInterface() {
@@ -42,6 +61,7 @@ function ChatInterface() {
       type: 'assistant',
       content: '',
       timestamp: new Date(),
+      isStreaming: true,
     };
     setMessages((prev) => [...prev, initialAssistantMessage]);
 
@@ -55,7 +75,7 @@ function ChatInterface() {
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === assistantMessageId
-              ? { ...msg, content: fullContent }
+              ? { ...msg, content: fullContent, isStreaming: true }
               : msg
           )
         );
@@ -67,7 +87,7 @@ function ChatInterface() {
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === assistantMessageId
-              ? { ...msg, content: fullContent }
+              ? { ...msg, content: fullContent, isStreaming: true }
               : msg
           )
         );
@@ -78,13 +98,20 @@ function ChatInterface() {
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === assistantMessageId
-              ? { ...msg, content: `Error: ${error}` }
+              ? { ...msg, content: `Error: ${error}`, isStreaming: false }
               : msg
           )
         );
       },
       onComplete: () => {
         setIsLoading(false);
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMessageId
+              ? { ...msg, isStreaming: false }
+              : msg
+          )
+        );
       },
     });
   };
@@ -140,13 +167,7 @@ function ChatInterface() {
               ) : (
                 <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
                   <div style={{ maxWidth: '100%' }}>
-                    {message.content ? (
-                      <ReactMarkdown>{message.content}</ReactMarkdown>
-                    ) : (
-                      <Text>
-                        <LoadingOutlined spin />{' '}
-                      </Text>
-                    )}
+                    <MessageContent message={message} />
                   </div>
                 </div>
               )}
