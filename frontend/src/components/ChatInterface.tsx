@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Card, Input, Button, Space, Avatar, Typography } from 'antd';
 import { SendOutlined, StopOutlined, UserOutlined, LoadingOutlined } from '@ant-design/icons';
+import ReactMarkdown from 'react-markdown';
 import { useSSE } from '../hooks/useSSE';
 
 const { TextArea } = Input;
@@ -17,7 +18,6 @@ function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [currentResponse, setCurrentResponse] = useState('');
   const { connect, disconnect } = useSSE();
 
   const handleSend = () => {
@@ -34,36 +34,40 @@ function ChatInterface() {
     const messageToSend = inputValue;
     setInputValue('');
     setIsLoading(true);
-    setCurrentResponse('');
+
+    const assistantMessageId = (Date.now() + 1).toString();
+
+    const initialAssistantMessage: Message = {
+      id: assistantMessageId,
+      type: 'assistant',
+      content: '',
+      timestamp: new Date(),
+    };
+    setMessages((prev) => [...prev, initialAssistantMessage]);
 
     connect(messageToSend, {
       onText: (_, snapshot) => {
-        setCurrentResponse(snapshot);
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMessageId
+              ? { ...msg, content: snapshot }
+              : msg
+          )
+        );
       },
       onError: (error) => {
         console.error('SSE Error:', error);
         setIsLoading(false);
-        setCurrentResponse('');
-        const errorMessage: Message = {
-          id: Date.now().toString(),
-          type: 'assistant',
-          content: `Error: ${error}`,
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, errorMessage]);
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMessageId
+              ? { ...msg, content: `Error: ${error}` }
+              : msg
+          )
+        );
       },
       onComplete: () => {
         setIsLoading(false);
-        setCurrentResponse((finalResponse) => {
-          const assistantMessage: Message = {
-            id: Date.now().toString(),
-            type: 'assistant',
-            content: finalResponse,
-            timestamp: new Date(),
-          };
-          setMessages((prev) => [...prev, assistantMessage]);
-          return '';
-        });
       },
     });
   };
@@ -71,7 +75,6 @@ function ChatInterface() {
   const handleStop = () => {
     disconnect();
     setIsLoading(false);
-    setCurrentResponse('');
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -120,25 +123,18 @@ function ChatInterface() {
               ) : (
                 <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
                   <div style={{ maxWidth: '100%' }}>
-                    <Text>{message.content}</Text>
+                    {message.content ? (
+                      <ReactMarkdown>{message.content}</ReactMarkdown>
+                    ) : (
+                      <Text>
+                        <LoadingOutlined spin />{' '}
+                      </Text>
+                    )}
                   </div>
                 </div>
               )}
             </div>
           ))}
-          {isLoading && (
-            <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-              <div style={{ maxWidth: '100%' }}>
-                {currentResponse ? (
-                  <Text>{currentResponse}</Text>
-                ) : (
-                  <Text>
-                    <LoadingOutlined spin />{' '}
-                  </Text>
-                )}
-              </div>
-            </div>
-          )}
         </div>
 
         <div

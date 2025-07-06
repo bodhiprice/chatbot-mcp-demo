@@ -1,4 +1,4 @@
-import { App, Stack, StackProps, CfnOutput, Duration, Fn, RemovalPolicy } from 'aws-cdk-lib';
+import { App, Stack, StackProps, CfnOutput, Duration, RemovalPolicy } from 'aws-cdk-lib';
 import * as assets from 'aws-cdk-lib/aws-ecr-assets';
 import * as apprunner from 'aws-cdk-lib/aws-apprunner';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
