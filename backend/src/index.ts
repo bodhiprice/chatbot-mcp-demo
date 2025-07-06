@@ -60,7 +60,7 @@ fastify.get('/chat/stream', async (request, reply) => {
               mcp_servers: [
                 {
                   type: 'url',
-                  url: process.env.MCP_SERVER_URL,
+                  url: `${process.env.MCP_SERVER_URL}/mcp`,
                   name: 'weather-mcp',
                 },
               ],
